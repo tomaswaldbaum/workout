@@ -614,7 +614,7 @@ export default function WorkoutSessionPage() {
 
       {/* Confirm Modal */}
       {confirmModal?.open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setConfirmModal(null)}
