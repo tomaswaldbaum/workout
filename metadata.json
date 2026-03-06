@@ -1,0 +1,5 @@
+{
+  "name": "Context Explanation Layer (CEL)",
+  "description": "A high-fidelity security analysis dashboard for visualizing incident relationships, confidence scoring, and evidence attribution with AI-powered summaries.",
+  "requestFramePermissions": []
+}

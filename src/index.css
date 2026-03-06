@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+/* ─── Radiant Design System ─────────────────────────────────────── */
+
+/* Navigation links */
+.nav-link {
+  @apply flex flex-col items-center gap-0.5 text-gray-500 transition-colors min-w-[64px] py-1;
+}
+.nav-link.active {
+  @apply text-white;
+}
+
+/* Safe area for iOS PWA */
+.safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+/* Gradient text utility */
+.text-radiant {
+  background: linear-gradient(to right, #f472b6, #a78bfa, #60a5fa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Radiant gradient ring for featured elements */
+.ring-radiant {
+  position: relative;
+}
+.ring-radiant::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, #f472b6, #a78bfa, #60a5fa);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Modal animation */
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
+
+/* Inline expand animation */
+@keyframes expand {
+  from { max-height: 0; opacity: 0; }
+  to { max-height: 500px; opacity: 1; }
+}
+.animate-expand {
+  animation: expand 0.3s ease-out;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Number input - remove spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 2px;
+}
+
+/* Radiant background - subtle radial gradient */
+.bg-radiant {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(120, 119, 198, 0.15), transparent),
+    #030712;
+}
+
+/* Glow shadow utilities */
+.shadow-glow-pink {
+  box-shadow: 0 0 24px -4px rgba(244, 114, 182, 0.3);
+}
+.shadow-glow-violet {
+  box-shadow: 0 0 24px -4px rgba(167, 139, 250, 0.3);
+}
+.shadow-glow-emerald {
+  box-shadow: 0 0 24px -4px rgba(52, 211, 153, 0.3);
+}

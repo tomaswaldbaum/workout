@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context Explanation Layer (CEL) - Phase 1 Pattern 1</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel (for JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100 text-slate-900 h-screen flex justify-center p-4">
+    <div id="root" class="w-full max-w-4xl bg-white shadow-xl rounded-lg overflow-hidden flex flex-col h-full border border-gray-200"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- PHASE 1 CANONICAL JSON MOCK ---
+        const CEA_DATA = {
+          "metadata": {
+            "campaignId": "CMP-12345",
+            "campaignState": "Suggested", 
+            "schemaVersion": "1.0.0",
+            "scoringModelVersion": "v3.4.0",
+            "generatedAt": "2026-01-09T13:45:10Z",
+            "membershipRevisionId": 18,
+            "membershipHash": "sha256:9f3a1c2b0d8e0c8f5f1a0aa9e4c120b7b2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7",
+            "incidentIds": ["INC-001", "INC-002", "INC-003", "INC-004"]
+          },
+          "confidence": {
+            "finalScore": 0.82,
+            "band": "High",
+            "components": [
+              { "type": "attribute", "name": "TTP_similarity", "value": 0.78, "weight": 0.35, "effect": 0.27, "evidenceRefs": ["EV-001", "EV-002"] },
+              { "type": "attribute", "name": "Infrastructure_reuse", "value": 0.65, "weight": 0.25, "effect": 0.16, "evidenceRefs": ["EV-010", "EV-011"] },
+              { "type": "multiplier", "name": "Timeline_effect", "value": 1.10, "weight": null, "effect": 0.06, "evidenceRefs": [] },
+              { "type": "bonus", "name": "Kill_chain_bonus", "value": 1, "weight": null, "effect": 0.05, "evidenceRefs": [] },
+              { "type": "penalty", "name": "Weak_link_penalty", "value": 1, "weight": null, "effect": -0.03, "evidenceRefs": [] }
+            ],
+            "rulesTriggered": [
+              {
+                "ruleId": "R-IOC-ONLY-01",
+                "severity": "warning",
+                "message": "Confidence capped due to IOC-only evidence pattern.",
+                "impactedComponents": ["Infrastructure_reuse", "Timeline_effect"]
+              }
+            ]
+          },
+          "killChain": {
+            "phases": [
+              { "phase": "Delivery", "incidentIds": ["INC-001"] },
+              { "phase": "Execution", "incidentIds": ["INC-001", "INC-002"] },
+              { "phase": "Persistence", "incidentIds": ["INC-003"] },
+              { "phase": "CommandAndControl", "incidentIds": ["INC-002", "INC-004"] },
+              { "phase": "Exfiltration", "incidentIds": ["INC-004"] }
+            ]
+          },
+          "evidence": {
+            "groups": [
+              {
+                "groupKey": "TTPs",
+                "groupLabel": "Techniques (TTPs)",
+                "items": [
+                  { "value": "T1059", "type": "MITRE Technique ID", "incidentIds": ["INC-001", "INC-002", "INC-003"] },
+                  { "value": "T1071", "type": "MITRE Technique ID", "incidentIds": ["INC-002", "INC-004"] }
+                ]
+              },
+              {
+                "groupKey": "ToolsMalware",
+                "groupLabel": "Tools / Malware",
+                "items": [
+                  { "value": "CoalStripe", "type": "Malware Family", "incidentIds": ["INC-001", "INC-002", "INC-004"] }
+                ]
+              },
+              {
+                "groupKey": "NetworkHostArtifacts",
+                "groupLabel": "Network / Host Artifacts",
+                "items": [
+                  { "value": "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "type": "HTTP Header Artifact", "incidentIds": ["INC-002", "INC-003"] }
+                ]
+              },
+              {
+                "groupKey": "DomainNames",
+                "groupLabel": "Domain Names",
+                "items": [
+                  { "value": "login-example.com", "type": "Domain", "incidentIds": ["INC-001", "INC-004"] }
+                ]
+              },
+              {
+                "groupKey": "IPAddresses",
+                "groupLabel": "IP Addresses",
+                "items": [
+                  { "value": "203.0.113.10", "type": "IPv4", "incidentIds": ["INC-002", "INC-004"] }
+                ]
+              },
+              {
+                "groupKey": "FileHashes",
+                "groupLabel": "File Hashes",
+                "items": [
+                  { "value": "44d88612fea8a8f36de82e1278abb02f", "type": "MD5", "incidentIds": ["INC-003", "INC-004"] }
+                ]
+              }
+            ]
+          },
+          "comparisonMatrix": {
+            "columns": ["INC-001", "INC-002", "INC-003", "INC-004"],
+            "rows": [
+              {
+                "attributeKey": "TTPs",
+                "values": [["T1059"], ["T1059", "T1071"], ["T1059"], ["T1071"]],
+                "overlap": "partial",
+                "matchStrength": 0.72,
+                "explanation": "Technique overlap exists but not uniform across all incidents."
+              },
+              {
+                "attributeKey": "DomainNames",
+                "values": [["login-example.com"], [], [], ["login-example.com"]],
+                "overlap": "partial",
+                "matchStrength": 0.55,
+                "explanation": "Domain reuse links INC-001 and INC-004 only."
+              },
+              {
+                "attributeKey": "ToolsMalware",
+                "values": [["CoalStripe"], ["CoalStripe"], [], ["CoalStripe"]],
+                "overlap": "partial",
+                "matchStrength": 0.68,
+                "explanation": "Tooling overlap across 3 incidents; one incident lacks tooling evidence."
+              }
+            ]
+          },
+          "timeline": {
+            "campaignTimeSpan": { "startAt": "2026-01-01T10:15:00Z", "endAt": "2026-01-06T18:40:00Z", "durationDays": 5 },
+            "incidents": [
+              { "incidentId": "INC-001", "timestamp": "2026-01-01T10:15:00Z" },
+              { "incidentId": "INC-002", "timestamp": "2026-01-02T09:00:00Z" },
+              { "incidentId": "INC-003", "timestamp": "2026-01-04T16:30:00Z" },
+              { "incidentId": "INC-004", "timestamp": "2026-01-06T18:40:00Z" }
+            ]
+          }
+        };
+
+        // --- COMPONENTS ---
+
+        function ConfidenceBadge({ band }) {
+            const colors = {
+                High: "bg-green-100 text-green-800 border-green-200",
+                Medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
+                Low: "bg-red-100 text-red-800 border-red-200"
+            };
+            return (
+                <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${colors[band] || colors.Low}`}>
+                    {band} Confidence
+                </span>
+            );
+        }
+
+        function StateBadge({ state }) {
+            const isGenerated = state === "Generated";
+            return (
+                <span className={`px-2 py-0.5 rounded text-xs font-semibold border inline-flex items-center gap-1 ${isGenerated ? "bg-purple-100 text-purple-800 border-purple-200" : "bg-blue-100 text-blue-800 border-blue-200"}`}>
+                    {state === 'Generated' && <i data-lucide="lock" className="w-3 h-3"></i>}
+                    {state}
+                </span>
+            );
+        }
+
+        function EvidenceGroup({ group }) {
+            const [isOpen, setIsOpen] = useState(true);
+            return (
+                <div className="border border-gray-200 rounded-md overflow-hidden mb-3">
+                    <div 
+                        className="bg-gray-50 px-3 py-2 flex justify-between items-center cursor-pointer hover:bg-gray-100"
+                        onClick={() => setIsOpen(!isOpen)}
+                    >
+                        <div className="flex items-center gap-2 font-medium text-sm text-slate-700">
+                             <i data-lucide={isOpen ? "chevron-down" : "chevron-right"} className="w-4 h-4 text-gray-500"></i>
+                             {group.groupLabel}
+                        </div>
+                        <span className="bg-white px-2 py-0.5 rounded-full text-xs text-gray-500 border border-gray-200">
+                            {group.items.length}
+                        </span>
+                    </div>
+                    {isOpen && (
+                        <div className="bg-white">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-gray-50 text-xs text-gray-500 uppercase border-b border-gray-100">
+                                    <tr>
+                                        <th className="px-4 py-2 font-medium w-3/5">Artifact / Type</th>
+                                        <th className="px-4 py-2 font-medium">Found In</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {group.items.map((item, idx) => (
+                                        <tr key={idx} className="hover:bg-gray-50">
+                                            <td className="px-4 py-2 align-top">
+                                                <div className="text-slate-800 font-medium break-all">{item.value}</div>
+                                                <div className="text-xs text-slate-500 mt-0.5">{item.type}</div>
+                                            </td>
+                                            <td className="px-4 py-2 align-top">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {item.incidentIds.map(inc => (
+                                                        <span key={inc} className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded textxs font-mono border border-slate-200 text-xs">
+                                                            {inc.split('-')[1]}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        function App() {
+            const data = CEA_DATA;
+            const [activeTab, setActiveTab] = useState('explanation');
+
+            useEffect(() => {
+                if(window.lucide) window.lucide.createIcons();
+            }, []);
+
+            return (
+                <div className="flex flex-col h-full">
+                    {/* --- HEADER --- */}
+                    <div className="px-6 py-4 border-b border-gray-200 bg-white flex-shrink-0">
+                        <div className="flex justify-between items-start mb-2">
+                            <div>
+                                <h1 className="text-xl font-bold text-slate-800">Context Explanation</h1>
+                                <div className="text-xs text-slate-500 mt-1 flex items-center gap-2">
+                                    <span>Generated {new Date(data.metadata.generatedAt).toLocaleDateString()}</span>
+                                    <span>•</span>
+                                    <span>Model {data.metadata.scoringModelVersion}</span>
+                                    <span>•</span>
+                                    <span>{data.metadata.incidentIds.length} Incidents</span>
+                                </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                                <div className="flex gap-2">
+                                    <ConfidenceBadge band={data.confidence.band} />
+                                    <StateBadge state={data.metadata.campaignState} />
+                                </div>
+                                <span className="text-xs font-mono text-gray-400">ID: {data.metadata.campaignId}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* --- SCROLLABLE CONTENT --- */}
+                    <div className="flex-1 overflow-y-auto p-6 bg-slate-50 space-y-6">
+                        
+                        {/* 1. CONFIDENCE SECTION */}
+                        <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className="flex flex-col items-center justify-center w-16 h-16 bg-blue-50 rounded-full border-4 border-blue-100">
+                                    <span className="text-lg font-bold text-blue-700">{data.confidence.finalScore}</span>
+                                </div>
+                                <div>
+                                    <h2 className="text-sm font-bold uppercase text-slate-400 tracking-wider">Confidence Score</h2>
+                                    <p className="text-sm text-slate-600">Calculated based on {data.confidence.components.length} weighted factors</p>
+                                </div>
+                            </div>
+                            
+                            {/* Rules/Alerts */}
+                            {data.confidence.rulesTriggered.length > 0 && (
+                                <div className="mb-4 space-y-2">
+                                    {data.confidence.rulesTriggered.map((rule, idx) => (
+                                        <div key={idx} className={`p-3 rounded text-sm flex items-start gap-2 ${rule.severity === 'warning' ? 'bg-amber-50 text-amber-900 border border-amber-200' : 'bg-blue-50 text-blue-900'}`}>
+                                            <i data-lucide="alert-triangle" className="w-4 h-4 mt-0.5 flex-shrink-0"></i>
+                                            <div>
+                                                <span className="font-semibold block text-xs mb-0.5">{rule.ruleId}</span>
+                                                {rule.message}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="text-xs text-gray-500 bg-gray-50 uppercase border-b border-gray-100">
+                                        <tr>
+                                            <th className="px-2 py-2 text-left">Factor</th>
+                                            <th className="px-2 py-2 text-right">Value</th>
+                                            <th className="px-2 py-2 text-right">Weight</th>
+                                            <th className="px-2 py-2 text-right">Effect</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {data.confidence.components.map((comp, idx) => (
+                                            <tr key={idx}>
+                                                <td className="px-2 py-2 font-medium text-slate-700 flex items-center gap-2">
+                                                    {comp.type === 'bonus' && <span className="text-green-600 font-bold">+</span>}
+                                                    {comp.type === 'penalty' && <span className="text-red-500 font-bold">-</span>}
+                                                    {comp.name.replace(/_/g, ' ')}
+                                                </td>
+                                                <td className="px-2 py-2 text-right font-mono text-slate-500">{comp.value}</td>
+                                                <td className="px-2 py-2 text-right font-mono text-xs text-slate-400">{comp.weight || '-'}</td>
+                                                <td className={`px-2 py-2 text-right font-mono font-medium ${comp.effect > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                                    {comp.effect > 0 ? '+' : ''}{comp.effect}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        {/* 2. KILL CHAIN SECTION (Phase 1: Mapping Only) */}
+                        <section>
+                            <h3 className="text-sm font-bold uppercase text-slate-500 mb-2 px-1">Kill Chain Phases</h3>
+                            <div className="grid grid-cols-5 gap-1 bg-white p-2 rounded-lg border border-gray-200 shadow-sm overflow-x-auto">
+                                {data.killChain.phases.map((phase, idx) => (
+                                    <div key={idx} className={`p-2 rounded flex flex-col min-w-[120px] ${phase.incidentIds.length > 0 ? 'bg-slate-50 border border-slate-100' : 'opacity-40'}`}>
+                                        <div className="text-xs font-semibold text-slate-600 mb-1 truncate" title={phase.phase}>
+                                            {phase.phase}
+                                        </div>
+                                        <div className="flex flex-wrap gap-1 mt-auto">
+                                            {phase.incidentIds.map(incId => (
+                                                <span key={incId} className="bg-indigo-100 text-indigo-700 text-[10px] px-1 rounded font-mono border border-indigo-200">
+                                                    {incId.split('-')[1]}
+                                                </span>
+                                            ))}
+                                            {phase.incidentIds.length === 0 && <span className="text-[10px] text-gray-300">-</span>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+
+                        {/* 3. COMPARISON MATRIX */}
+                        <section>
+                            <h3 className="text-sm font-bold uppercase text-slate-500 mb-2 px-1">Incident Comparison</h3>
+                            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 text-xs uppercase text-gray-500 border-b border-gray-200">
+                                        <tr>
+                                            <th className="px-4 py-3 text-left w-32 sticky left-0 bg-gray-50 border-r border-gray-200">Attribute</th>
+                                            {data.comparisonMatrix.columns.map(col => (
+                                                <th key={col} className="px-4 py-3 text-center min-w-[100px] font-mono">{col}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {data.comparisonMatrix.rows.map((row, rIdx) => (
+                                            <tr key={rIdx} className="hover:bg-slate-50">
+                                                <td className="px-4 py-3 font-medium text-slate-700 sticky left-0 bg-white border-r border-gray-200 text-xs">
+                                                    {row.attributeKey}
+                                                    <div className={`mt-1 text-[10px] px-1.5 py-0.5 inline-block rounded ${row.overlap === 'all' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                        {row.overlap}
+                                                    </div>
+                                                </td>
+                                                {row.values.map((val, cIdx) => (
+                                                    <td key={cIdx} className="px-4 py-3 text-center align-top border-l border-dashed border-gray-100">
+                                                        {val.length > 0 ? (
+                                                            <div className="flex flex-col gap-1 items-center">
+                                                                {val.map((v, i) => (
+                                                                    <span key={i} className="inline-block max-w-[120px] truncate text-xs bg-gray-100 px-1.5 py-0.5 rounded text-gray-700" title={v}>{v}</span>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-gray-300 text-xs">-</span>
+                                                        )}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        {/* 4. EVIDENCE GROUPS */}
+                        <section>
+                            <h3 className="text-sm font-bold uppercase text-slate-500 mb-2 px-1">Correlated Evidence</h3>
+                            {data.evidence.groups.map(group => (
+                                <EvidenceGroup key={group.groupKey} group={group} />
+                            ))}
+                        </section>
+
+                        {/* 5. TIMELINE */}
+                        <section className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
+                            <h2 className="text-sm font-bold uppercase text-slate-400 mb-3 tracking-wider">Campaign Timeline</h2>
+                            <div className="flex items-center gap-4 text-sm text-slate-600 mb-4 border-b border-gray-100 pb-3">
+                                <div className="flex flex-col">
+                                    <span className="text-xs text-gray-400">Start</span>
+                                    <span className="font-medium">{new Date(data.timeline.campaignTimeSpan.startAt).toLocaleString()}</span>
+                                </div>
+                                <div className="h-4 w-px bg-gray-300"></div>
+                                <div className="flex flex-col">
+                                    <span className="text-xs text-gray-400">End</span>
+                                    <span className="font-medium">{new Date(data.timeline.campaignTimeSpan.endAt).toLocaleString()}</span>
+                                </div>
+                                <div className="ml-auto bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold">
+                                    {data.timeline.campaignTimeSpan.durationDays} Days Duration
+                                </div>
+                            </div>
+                            
+                            <div className="relative pl-4 border-l-2 border-gray-200 space-y-4">
+                                {data.timeline.incidents.map((incident, idx) => (
+                                    <div key={idx} className="relative">
+                                        <div className="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full bg-slate-300 border-2 border-white"></div>
+                                        <div className="bg-gray-50 p-2 rounded border border-gray-100 hover:border-blue-200 transition-colors">
+                                            <div className="font-mono text-sm font-semibold text-slate-800">{incident.incidentId}</div>
+                                            <div className="text-xs text-slate-500">{new Date(incident.timestamp).toLocaleString()}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

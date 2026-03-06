@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Context Explanation Layer (CEL) - Local Preview</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel (for JSX) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        /* Custom tweaks if needed */
+        body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- DATA ---
+        const MOCK_CEL_DATA = {
+            generatedAt: "2026-01-07T15:22:10Z",
+            incidentCount: 7,
+            scoringModel: "v3.4.0",
+            confidenceScore: 0.82,
+            confidenceBand: "HIGH",
+            timeSpan: {
+                start: "Jan 01, 2026",
+                end: "Jan 04, 2026",
+                duration: "3 days",
+                multiplier: 1.15
+            },
+            drivers: ["TTP similarity (+0.27)", "Infrastructure reuse (+0.16)", "Kill chain bonus (+0.05)"],
+            components: [
+                { type: 'attribute', name: 'TTP_similarity', value: 0.78, weight: 0.35, effect: 0.27, evidenceRefs: ['EV-001', 'EV-002'] },
+                { type: 'attribute', name: 'Infrastructure_reuse', value: 0.65, weight: 0.25, effect: 0.16, evidenceRefs: ['EV-010'] },
+                { type: 'multiplier', name: 'Timeline_multiplier', value: 1.15, effect: 0.07, evidenceRefs: ['EV-070'] },
+                { type: 'bonus', name: 'Kill_chain_bonus', value: 1, effect: 0.05, evidenceRefs: ['EV-050'] },
+                { type: 'penalty', name: 'Weak_link_penalty', value: 1, effect: -0.03, evidenceRefs: [] }
+            ],
+            evidence: {
+                ttps: [
+                    { id: 'T1059', type: 'technique', name: 'Command and Scripting', coverage: 'INC-SIR01, INC-SIR02, INC-SIR03', match: 0.78 },
+                    { id: 'T1071', type: 'technique', name: 'Application Layer Protocol', coverage: 'INC-SIR01, INC-SIR02, INC-SIR05', match: 0.63 }
+                ],
+                infrastructure: [
+                    { id: 'EV-010', type: 'domain', name: 'login-example.com', coverage: 'INC-SIR01, INC-SIR02, INC-SIR04', match: 0.85 },
+                    { id: 'EV-011', type: 'ip', name: '203.0.113.10', coverage: 'INC-SIR02, INC-SIR03', match: 0.90 },
+                    { id: 'EV-012', type: 'url', name: 'https://example.com/update', coverage: 'INC-SIR01, INC-SIR05', match: 0.75 }
+                ],
+                credentials: [
+                    { id: 'EV-090', type: 'username', name: 'user_admin', coverage: 'INC-SIR01, INC-SIR04', match: 1.0, isMasked: false }
+                ],
+                malware: [
+                    { id: 'M-01', type: 'tool', name: 'Cobalt Strike', coverage: 'INC-SIR01, INC-SIR02, INC-SIR03, INC-SIR05', match: 0.95 },
+                    { id: 'M-02', type: 'malware', name: 'Mimikatz', coverage: 'INC-SIR02, INC-SIR04', match: 0.88 }
+                ],
+                hashes: [
+                    { id: 'H-01', type: 'sha256', name: '9f3a5b2c7d8e9f0a1b2c3d4e5f6a7b8c', coverage: 'INC-SIR01, INC-SIR02, INC-SIR06', match: 1.0 },
+                    { id: 'H-02', type: 'sha256', name: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6', coverage: 'INC-SIR04, INC-SIR05', match: 1.0 }
+                ],
+                hostArtifacts: [
+                    { id: 'HA-01', type: 'registry', name: 'HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', coverage: 'INC-SIR03, INC-SIR06', match: 0.82 }
+                ]
+            },
+            killChain: {
+                phases: {
+                    'Reconnaissance': [],
+                    'Weaponization': [],
+                    'Delivery': ['INC-SIR01', 'INC-SIR04'],
+                    'Execution': ['INC-SIR01', 'INC-SIR06'],
+                    'Installation': ['INC-SIR03', 'INC-SIR06'],
+                    'Command & Control': ['INC-SIR02', 'INC-SIR05'],
+                    'Actions on Objectives': ['INC-SIR07']
+                },
+                continuity: [
+                    { transition: 'Delivery → Execution', confidence: 0.72, reasons: ['EV-001', 'EV-010'] },
+                    { transition: 'Execution → Installation', confidence: 0.60, reasons: ['EV-002'] },
+                    { transition: 'Installation → C2', confidence: 0.80, reasons: ['EV-050'] }
+                ]
+            },
+            incidents: [
+                { id: 'INC-SIR01', start: 'Jan 01, 2026 at 09:00 AM', end: 'Jan 01, 2026 at 11:30 AM', phase: 'Delivery' },
+                { id: 'INC-SIR02', start: 'Jan 01, 2026 at 02:15 PM', end: 'Jan 02, 2026 at 08:00 AM', phase: 'C2' },
+                { id: 'INC-SIR03', start: 'Jan 02, 2026 at 10:00 AM', end: 'Jan 02, 2026 at 04:00 PM', phase: 'Installation' },
+                { id: 'INC-SIR04', start: 'Jan 02, 2026 at 05:00 PM', end: 'Jan 03, 2026 at 09:00 AM', phase: 'Delivery' },
+                { id: 'INC-SIR05', start: 'Jan 03, 2026 at 11:30 AM', end: 'Jan 03, 2026 at 11:45 PM', phase: 'C2' },
+                { id: 'INC-SIR06', start: 'Jan 04, 2026 at 01:00 AM', end: 'Jan 04, 2026 at 06:00 AM', phase: 'Execution' },
+                { id: 'INC-SIR07', start: 'Jan 04, 2026 at 09:00 AM', end: 'Jan 04, 2026 at 08:00 PM', phase: 'Objectives' }
+            ]
+        };
+
+        const { useState } = React;
+
+        // --- COMPONENTS ---
+
+        const StatusDot = ({ color = "bg-slate-300" }) => (
+            <span className={`w-2.5 h-2.5 rounded-full ${color}`}></span>
+        );
+
+        const Tooltip = ({ text, children, className = "" }) => (
+            <div className={`relative flex items-center group ${className}`}>
+                {children}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
+                    <div className="bg-slate-800 text-white text-[10px] font-medium px-2 py-1 rounded shadow-lg whitespace-nowrap">
+                        {text}
+                    </div>
+                <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-slate-800 mx-auto"></div>
+                </div>
+            </div>
+        );
+
+        const Badge = ({ children, className = "" }) => (
+            <span className={`inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold ${className}`}>
+                {children}
+            </span>
+        );
+
+        const IncidentLink = ({ id }) => {
+            const incident = MOCK_CEL_DATA.incidents.find(i => i.id === id);
+            const info = incident ? `${incident.phase} • ${incident.start}` : "View Details";
+            return (
+                <Tooltip text={info}>
+                <span className="text-sky-600 font-bold hover:underline cursor-pointer text-[12px]">{id}</span>
+                </Tooltip>
+            );
+        };
+
+        const SimpleTable = ({ columns, children, title }) => (
+            <div className="w-full bg-white border border-slate-200 rounded-sm mb-6 overflow-hidden">
+                {title && (
+                    <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200">
+                        <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">{title}</h3>
+                    </div>
+                )}
+                <table className="w-full text-left text-[13px] table-fixed">
+                    <thead className="bg-[#f8fafc] border-b border-slate-200">
+                        <tr>
+                            {columns.map((col, idx) => (
+                                <th key={col} className={`px-4 py-2.5 text-slate-500 font-semibold ${idx === 0 ? 'w-1/2' : 'w-1/2'}`}>{col}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {children}
+                    </tbody>
+                </table>
+            </div>
+        );
+
+        const ExpandableTable = ({ title, items, columns }) => {
+            const [isOpen, setIsOpen] = useState(true);
+
+            return (
+                <div className="w-full bg-white border border-slate-200 rounded-sm mb-2 overflow-hidden">
+                    <Tooltip text={isOpen ? "Collapse section" : "Expand section"} className="w-full">
+                        <div 
+                        className="w-full bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex justify-between items-center cursor-pointer hover:bg-slate-100 transition-colors"
+                        onClick={() => setIsOpen(!isOpen)}
+                        >
+                        <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-500">{title}</h3>
+                        <span className="text-slate-400 text-[10px] font-black">{isOpen ? '▼' : '▶'}</span>
+                        </div>
+                    </Tooltip>
+                    {isOpen && (
+                        <table className="w-full text-left text-[13px] table-fixed">
+                            <thead className="bg-[#f8fafc] border-b border-slate-200">
+                                <tr>
+                                {columns.map((col, idx) => (
+                                    <th key={col} className={`px-4 py-2.5 text-slate-500 font-semibold ${idx === 0 ? 'w-1/2' : 'w-1/2'}`}>{col}</th>
+                                ))}
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {items.map((item) => (
+                                <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+                                    <td className="px-4 py-3">
+                                    <div className="flex flex-col">
+                                        <span className="font-medium text-slate-700 truncate" title={item.name}>{item.name}</span>
+                                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tight">{item.id}</span>
+                                    </div>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                    <div className="flex flex-wrap gap-x-1">
+                                        {item.coverage.split(', ').map((inc, idx, arr) => (
+                                        <React.Fragment key={inc}>
+                                            <IncidentLink id={inc} />
+                                            {idx < arr.length - 1 && <span className="text-slate-400 text-xs font-bold">,</span>}
+                                        </React.Fragment>
+                                        ))}
+                                    </div>
+                                    </td>
+                                </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            );
+        };
+
+        const EvidencePanel = ({ data }) => {
+            const groups = [
+                { title: 'TTPs', items: data.evidence.ttps },
+                { title: 'Malware', items: data.evidence.malware || [] },
+                { title: 'Tools', items: data.evidence.tools || [] },
+                { title: 'Network/Host Artifacts', items: data.evidence.hostArtifacts || [] },
+                { title: 'Domain Names', items: data.evidence.infrastructure.filter(i => i.type === 'domain') },
+                { title: 'IP Addresses', items: data.evidence.infrastructure.filter(i => i.type === 'ip') },
+                { title: 'Hash Values', items: data.evidence.hashes || [] }
+            ];
+
+            return (
+                <div className="space-y-4">
+                    {groups.map((group) => group.items.length > 0 && (
+                        <ExpandableTable key={group.title} title={group.title} items={group.items} columns={['Value', 'Incidents']} />
+                    ))}
+                </div>
+            );
+        };
+
+        const ComparePanel = ({ data }) => {
+            const attributes = [
+                { label: 'TTPs', values: ['T1059', 'T1059', 'T1059', 'T1059', 'T1071'], color: 'bg-orange-500' },
+                { label: 'Malware', values: ['Cobalt Strike', 'Cobalt Strike', 'Cobalt Strike', 'Mimikatz', 'Cobalt Strike'], color: 'bg-red-500' },
+                { label: 'Tools', values: ['PowerShell', 'WMI', 'PsExec', 'WMI', 'PowerShell'], color: 'bg-blue-500' },
+                { label: 'Artifacts', values: ['registry_key_hklm', 'temp_file_x', 'registry_key_hklm', 'temp_file_y', 'registry_key_hklm'], color: 'bg-emerald-500' },
+                { label: 'Domains', values: ['login-ex.com', 'login-ex.com', 'c2-server.net', 'login-ex.com', 'update.sys'], color: 'bg-purple-500' },
+                { label: 'IP Addresses', values: ['45.2.10.3', '103.4.15.2', '45.2.10.3', '192.3.1.5', '103.4.15.2'], color: 'bg-amber-500' },
+                { label: 'Hash Values', values: ['9f3a...c120', '9f3a...c120', '9f3a...c120', 'a1b2...e5f6', 'a1b2...e5f6'], color: 'bg-indigo-500' }
+            ];
+
+            return (
+                <SimpleTable columns={['Attribute', 'Overlap', 'INC-SIR01', 'INC-SIR02', 'INC-SIR03', 'INC-SIR04', 'INC-SIR05']}>
+                {attributes.map((attr, idx) => {
+                    const valueCounts = attr.values.reduce((acc, v) => {
+                    acc[v] = (acc[v] || 0) + 1;
+                    return acc;
+                    }, {});
+
+                    return (
+                    <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-4 font-bold text-slate-500 text-[11px] uppercase tracking-wider">{attr.label}</td>
+                        <td className="px-4 py-4">
+                        <Badge className={idx % 2 === 0 ? "text-emerald-600 bg-emerald-50" : "text-sky-600 bg-sky-50"}>
+                            {idx % 2 === 0 ? 'High' : 'Partial'}
+                        </Badge>
+                        </td>
+                        {attr.values.map((val, i) => (
+                        <td key={i} className="px-4 py-4">
+                            <div className="flex items-center gap-2">
+                            {valueCounts[val] > 1 && <StatusDot color={attr.color} />}
+                            <span className={`text-[12px] font-medium ${valueCounts[val] > 1 ? 'text-slate-900' : 'text-slate-400 italic'}`}>
+                                {val}
+                            </span>
+                            </div>
+                        </td>
+                        ))}
+                    </tr>
+                    );
+                })}
+                </SimpleTable>
+            );
+        };
+
+        const TimelinePanel = ({ data }) => (
+            <div className="space-y-8">
+                <div className="bg-white border border-slate-200 rounded-sm p-8">
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-6 border-b border-slate-100 pb-2">Campaign Timeline</h3>
+                <div className="flex items-center gap-16">
+                    <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Duration</span>
+                    <span className="text-3xl font-black text-sky-600">{data.timeSpan.duration}</span>
+                    </div>
+                    <div className="flex flex-col border-l border-slate-100 pl-8">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Start Date</span>
+                    <span className="text-sm text-slate-700 font-bold">{data.timeSpan.start}</span>
+                    </div>
+                    <div className="flex flex-col border-l border-slate-100 pl-8">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">End Date</span>
+                    <span className="text-sm text-slate-700 font-bold">{data.timeSpan.end}</span>
+                    </div>
+                </div>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-sm p-8">
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-8 border-b border-slate-100 pb-2">Incident Sequence</h3>
+                <div className="relative pl-8 border-l-2 border-slate-100 space-y-10">
+                    {data.incidents.map((inc, i) => (
+                    <div key={inc.id} className="relative">
+                        <div className="absolute -left-[41px] top-1 w-4 h-4 rounded-full bg-white border-4 border-sky-500 shadow-sm"></div>
+                        <div className="flex items-center justify-between group">
+                        <IncidentLink id={inc.id} />
+                        <span className="text-[11px] font-bold text-slate-400 mono">{inc.start}</span>
+                        </div>
+                    </div>
+                    ))}
+                </div>
+                </div>
+            </div>
+        );
+
+        const KillChainPanel = ({ data }) => {
+            const phaseMap = [
+                { label: 'Recon', key: 'Reconnaissance' },
+                { label: 'Weapon', key: 'Weaponization' },
+                { label: 'Delivery', key: 'Delivery' },
+                { label: 'Execution', key: 'Execution' },
+                { label: 'Install', key: 'Installation' },
+                { label: 'C2', key: 'Command & Control' },
+                { label: 'Actions', key: 'Actions on Objectives' }
+            ];
+
+            return (
+                <div className="bg-white border border-slate-200 p-10 rounded-sm">
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400 mb-10 border-b border-slate-100 pb-2">Kill Chain Sequence</h3>
+                <div className="flex items-center justify-between w-full relative">
+                    <div className="absolute top-5 left-0 right-0 h-[1px] bg-slate-200 z-0"></div>
+                    {phaseMap.map((phase, idx) => {
+                    const incidents = data.killChain.phases[phase.key] || [];
+                    const hasActivity = incidents.length > 0;
+                    return (
+                        <div key={idx} className="flex flex-col items-center z-10 bg-white px-2">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-3 border-2 transition-all shadow-sm ${hasActivity ? 'bg-sky-50 border-sky-500 text-sky-600 font-black' : 'bg-slate-50 border-slate-200 text-slate-300'}`}>
+                            {idx + 1}
+                        </div>
+                        <span className={`text-[10px] font-black uppercase tracking-widest text-center ${hasActivity ? 'text-slate-800' : 'text-slate-300'}`}>
+                            {phase.label}
+                        </span>
+                        <div className="mt-2 min-h-[15px] flex flex-wrap gap-x-1 justify-center">
+                            {incidents.map((inc, i) => (
+                            <React.Fragment key={inc}>
+                                <IncidentLink id={inc} />
+                                {i < incidents.length - 1 && <span className="text-slate-400 text-[10px] font-bold">,</span>}
+                            </React.Fragment>
+                            ))}
+                        </div>
+                        </div>
+                    );
+                    })}
+                </div>
+                </div>
+            );
+        };
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('score');
+            const [data] = useState(MOCK_CEL_DATA);
+
+            const tabs = [
+                { id: 'score', label: 'Score', count: 1 },
+                { id: 'evidence', label: 'Evidence', count: data.incidentCount * 2 },
+                { id: 'kill', label: 'Kill Chain', count: 7 },
+                { id: 'compare', label: 'Compare', count: 5 },
+                { id: 'timeline', label: 'Timeline', count: data.incidentCount },
+            ];
+
+            return (
+                <div className="min-h-screen py-10 flex justify-center bg-slate-50">
+                    <div className="w-[1100px] max-w-full flex flex-col bg-white border border-slate-200 shadow-xl overflow-hidden rounded-sm">
+                        
+                        {/* Main Confidence Header */}
+                        <div className="p-10 border-b border-slate-200 bg-white">
+                        <div className="flex items-start justify-between">
+                            <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-4">
+                                <span className="text-6xl font-black text-emerald-600 tracking-tighter">HIGH</span>
+                                <div className="h-10 w-[2px] bg-slate-100"></div>
+                                <div className="flex flex-col">
+                                <span className="text-slate-800 font-bold text-lg">High confidence campaign</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">Global Correlation Score:</span>
+                                    <span className="text-slate-900 font-black text-xs px-2 py-0.5 bg-slate-100 rounded">{data.confidenceScore}</span>
+                                </div>
+                                </div>
+                            </div>
+                            <p className="text-slate-500 text-xs mt-4 max-w-xl leading-relaxed">
+                                <span className="font-bold text-slate-700 mr-2">Core drivers:</span>
+                                {data.drivers.join(', ')}
+                            </p>
+                            </div>
+                            <Tooltip text="Dismiss explanation layer">
+                                <button className="px-6 py-2 rounded border border-slate-200 bg-white text-slate-600 text-xs font-black uppercase tracking-widest hover:bg-slate-50 transition-all">
+                                    Close Layer
+                                </button>
+                            </Tooltip>
+                        </div>
+                        </div>
+
+                        {/* Tab Headers */}
+                        <div className="flex items-end gap-10 px-10 border-b border-slate-200 bg-slate-50/50">
+                        {tabs.map(tab => (
+                            <Tooltip key={tab.id} text={`Switch to ${tab.label} view`}>
+                                <button
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`pt-5 pb-4 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative ${
+                                    activeTab === tab.id ? 'text-sky-600 border-b-2 border-sky-600' : 'text-slate-400 hover:text-slate-800'
+                                }`}
+                                >
+                                {tab.label}
+                                <span className="bg-slate-200 text-slate-500 text-[9px] px-1.5 py-0.5 rounded-sm">
+                                    {tab.count}
+                                </span>
+                                </button>
+                            </Tooltip>
+                        ))}
+                        </div>
+
+                        {/* Content Area */}
+                        <main className="p-10 flex-1 overflow-y-auto min-h-[500px] bg-white">
+                        {activeTab === 'score' && (
+                            <SimpleTable title="Scoring Components" columns={['Component', 'Value', 'Weight', 'Effect']}>
+                                {data.components.map((comp, i) => (
+                                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                                    <td className="px-4 py-4">
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-slate-700">{comp.name}</span>
+                                        <span className="text-[10px] text-slate-400 uppercase font-black tracking-widest">{comp.type}</span>
+                                    </div>
+                                    </td>
+                                    <td className="px-4 py-4 mono text-slate-600 font-bold">{comp.value}</td>
+                                    <td className="px-4 py-4 text-slate-500">{comp.weight || '--'}</td>
+                                    <td className={`px-4 py-4 font-black ${comp.effect >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                    {comp.effect >= 0 ? '+' : ''}{comp.effect}
+                                    </td>
+                                </tr>
+                                ))}
+                            </SimpleTable>
+                        )}
+
+                        {activeTab === 'evidence' && <EvidencePanel data={data} />}
+                        
+                        {activeTab === 'kill' && <KillChainPanel data={data} />}
+
+                        {activeTab === 'compare' && <ComparePanel data={data} />}
+                        {activeTab === 'timeline' && <TimelinePanel data={data} />}
+                        </main>
+                        
+                        {/* Empty Footer Space */}
+                        <div className="h-10 bg-slate-50 border-t border-slate-200"></div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
