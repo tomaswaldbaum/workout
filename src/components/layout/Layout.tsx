@@ -19,7 +19,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <h1 className="text-lg font-bold flex items-center gap-2">
             <Dumbbell size={20} className="text-pink-400" />
             <span className="text-radiant">
-              Workout Tracker
+              TrackMyWorkout
             </span>
           </h1>
         </header>

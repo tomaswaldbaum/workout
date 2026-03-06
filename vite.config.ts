@@ -15,8 +15,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Workout Tracker',
-        short_name: 'Workout',
+        name: 'TrackMyWorkout',
+        short_name: 'TrackMyWorkout',
         description: 'Track your training routines',
         theme_color: '#09090b',
         background_color: '#09090b',
